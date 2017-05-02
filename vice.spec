@@ -1,6 +1,6 @@
 Name:           vice
-Version:        2.4.28
-Release:        2%{?dist}
+Version:        3.1
+Release:        1%{?dist}
 Summary:        Emulator for a variety of Commodore 8bit machines
 Group:          Applications/Emulators
 License:        GPLv2+
@@ -24,7 +24,6 @@ Source15:       xvic.metainfo.xml
 Patch1:         vice-2.4.24-datadir.patch
 Patch2:         vice-htmlview.patch
 Patch3:         vice-norpath.patch
-Patch4:         vice-2.4.28-sdl-build-fix.patch
 BuildRequires:  libXt-devel libXext-devel libXxf86vm-devel libXxf86dga-devel
 BuildRequires:  libXrandr-devel
 BuildRequires:  giflib-devel libjpeg-devel libpng-devel
@@ -130,7 +129,6 @@ sed -i 's/\r//' `find -name "*.cc"`
 %patch1 -p1 -z .datadir
 %patch2 -p1 -z .htmlview
 %patch3 -p1 -z .norpath
-%patch4 -p1 -z .norpath
 for i in man/*.1 doc/*.info* README AUTHORS; do
    iconv -f ISO-8859-1 -t UTF8 $i > $i.tmp
    touch -r $i $i.tmp
@@ -295,6 +293,9 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 
 %changelog
+* Mon May  2 2017 Roland Hermans <rolandh@users.sourceforge.net> - 3.1-1
+- New upstream release 3.1
+
 * Sun Mar 26 2017 RPM Fusion Release Engineering <kwizart@rpmfusion.org> - 2.4.28-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_26_Mass_Rebuild
 
