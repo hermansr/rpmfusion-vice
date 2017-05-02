@@ -1,6 +1,6 @@
 Name:           vice
-Version:        2.4.24
-Release:        1%{?dist}
+Version:        2.4.28
+Release:        2%{?dist}
 Summary:        Emulator for a variety of Commodore 8bit machines
 Group:          Applications/Emulators
 License:        GPLv2+
@@ -15,9 +15,16 @@ Source6:        xvic.desktop
 Source7:        vice-miniicons.tar.bz2
 Source8:        vice-normalicons.tar.bz2
 Source9:        vice-largeicons.tar.bz2
+Source10:       x64.appdata.xml
+Source11:       x128.metainfo.xml
+Source12:       xcbm-ii.metainfo.xml
+Source13:       xpet.metainfo.xml
+Source14:       xplus4.metainfo.xml
+Source15:       xvic.metainfo.xml
 Patch1:         vice-2.4.24-datadir.patch
 Patch2:         vice-htmlview.patch
 Patch3:         vice-norpath.patch
+Patch4:         vice-2.4.28-sdl-build-fix.patch
 BuildRequires:  libXt-devel libXext-devel libXxf86vm-devel libXxf86dga-devel
 BuildRequires:  libXrandr-devel
 BuildRequires:  giflib-devel libjpeg-devel libpng-devel
@@ -26,8 +33,13 @@ BuildRequires:  ffmpeg-devel lame-devel
 BuildRequires:  readline-devel SDL-devel alsa-lib-devel pulseaudio-libs-devel
 BuildRequires:  libieee1284-devel libpcap-devel
 BuildRequires:  bison flex gettext info desktop-file-utils xorg-x11-font-utils
-Requires:       hicolor-icon-theme xdg-utils
-Requires:       %{name}-data = %{version}-%{release}
+BuildRequires:  libappstream-glib
+Requires:       %{name}-x64 = %{version}-%{release}
+Requires:       %{name}-x128 = %{version}-%{release}
+Requires:       %{name}-xcbm-ii = %{version}-%{release}
+Requires:       %{name}-xpet = %{version}-%{release}
+Requires:       %{name}-xplus4 = %{version}-%{release}
+Requires:       %{name}-xvic = %{version}-%{release}
 
 %description
 An emulator for a variety of Commodore 8bit machines, including the C16, C64,
@@ -35,9 +47,18 @@ C128, VIC-20, PET (all models, except SuperPET 9000), Plus-4, CBM-II
 (aka C610)
 
 
+%package        common
+Summary:        Common files for %{name}
+Requires:       %{name}-engine = %{version}-%{release}
+Requires:       %{name}-data = %{version}-%{release}
+Requires:       hicolor-icon-theme
+
+%description    common
+Common files for %{name}.
+
+
 %package        data
 Summary:        Data files for %{name}
-Group:          Applications/Emulators
 Provides:       sidplayfp-data = %{version}-%{release}
 BuildArch:      noarch
 
@@ -46,12 +67,70 @@ Data files for %{name}. These can also be used together with libsidplayfp
 based sid music players.
 
 
+%package        x64
+Summary:        Vice Commodore 64 Emulator
+Provides:       %{name}-engine
+Requires:       %{name}-common = %{version}-%{release}
+
+%description    x64
+Vice Commodore 64 Emulator.
+
+
+%package        x128
+Summary:        Vice Commodore 128 Emulator
+Provides:       %{name}-engine
+Requires:       %{name}-common = %{version}-%{release}
+
+%description    x128
+Vice Commodore 128 Emulator.
+
+
+%package        xcbm-ii
+Summary:        Vice CBM-II (C610) Emulator
+Provides:       %{name}-engine
+Requires:       %{name}-common = %{version}-%{release}
+
+%description    xcbm-ii
+Vice CBM-II (C610) Emulator.
+
+
+%package        xpet
+Summary:        Vice Commodore PET Emulator
+Provides:       %{name}-engine
+Requires:       %{name}-common = %{version}-%{release}
+
+%description    xpet
+Vice Commodore PET Emulator.
+
+
+%package        xplus4
+Summary:        Vice Commodore Plus-4 Emulator
+Provides:       %{name}-engine
+Requires:       %{name}-common = %{version}-%{release}
+
+%description    xplus4
+Vice Commodore Plus-4 Emulator.
+
+
+%package        xvic
+Summary:        Vice Commodore VIC-20 Emulator
+Provides:       %{name}-engine
+Requires:       %{name}-common = %{version}-%{release}
+
+%description    xvic
+Vice Commodore VIC-20 Emulator.
+
+
 %prep
 %setup -c -q
 pushd %{name}-%{version}
+sed -i 's/\r//' `find -name "*.h"`
+sed -i 's/\r//' `find -name "*.c"`
+sed -i 's/\r//' `find -name "*.cc"`
 %patch1 -p1 -z .datadir
 %patch2 -p1 -z .htmlview
 %patch3 -p1 -z .norpath
+%patch4 -p1 -z .norpath
 for i in man/*.1 doc/*.info* README AUTHORS; do
    iconv -f ISO-8859-1 -t UTF8 $i > $i.tmp
    touch -r $i $i.tmp
@@ -61,8 +140,6 @@ popd
 
 mv %{name}-%{version} %{name}-%{version}.gtk
 cp -a %{name}-%{version}.gtk %{name}-%{version}.sdl
-# for %%doc
-ln -s %{name}-%{version}.gtk/doc doc
 
 
 %build
@@ -70,21 +147,27 @@ COMMON_FLAGS="--enable-ethernet --enable-parsid --without-oss --disable-arch"
 
 # workaround needed to fix incorrect toolchain check in configure script
 export toolchain_check=no
+export CC=gcc
+export CXX=g++
 
 pushd %{name}-%{version}.gtk
   %configure --enable-gnomeui --enable-fullscreen $COMMON_FLAGS
+  # Ensure the system versions of these are used
+  rm -r src/lib/lib* src/lib/ffmpeg
   make %{?_smp_mflags}
 popd
 
 pushd %{name}-%{version}.sdl
   %configure --enable-sdlui $COMMON_FLAGS
+  # Ensure the system versions of these are used
+  rm -r src/lib/lib* src/lib/ffmpeg
   make %{?_smp_mflags}
 popd
 
 
 %install
 pushd %{name}-%{version}.gtk
-make install DESTDIR=$RPM_BUILD_ROOT VICEDIR=%{_datadir}/%{name}
+%make_install VICEDIR=%{_datadir}/%{name}
 popd
 
 pushd %{name}-%{version}.sdl
@@ -116,15 +199,14 @@ for i in basic chargen kernal; do
 done
 
 # below is the desktop file and icon stuff.
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/appdata
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/applications
-for i in x128.desktop x64.desktop xcbm-ii.desktop xpet.desktop xplus4.desktop \
-    xvic.desktop; do
-  desktop-file-install \
-%if 0%{?fedora} && 0%{?fedora} < 19
-    --vendor dribble \
-%endif
-    --dir $RPM_BUILD_ROOT%{_datadir}/applications \
-    $RPM_SOURCE_DIR/$i
+for i in x64 x128 xcbm-ii xpet xplus4 xvic; do
+  desktop-file-install --dir $RPM_BUILD_ROOT%{_datadir}/applications \
+    $RPM_SOURCE_DIR/$i.desktop
+  install -p -m 0644 $RPM_SOURCE_DIR/$i.*.xml $RPM_BUILD_ROOT%{_datadir}/appdata
+  appstream-util validate-relax --nonet \
+    $RPM_BUILD_ROOT%{_datadir}/appdata/$i.*.xml
 done
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/icons/hicolor/16x16/apps
 cd $RPM_BUILD_ROOT%{_datadir}/icons/hicolor/16x16/apps
@@ -141,34 +223,71 @@ for i in */apps/*icon.png; do mv $i `echo $i|sed s/icon//`; done
 popd
 
 
-%post
+%post common
 /sbin/install-info %{_infodir}/%{name}.info %{_infodir}/dir || :
 touch --no-create %{_datadir}/icons/hicolor &>/dev/null || :
 
-%preun
+%preun common
 if [ "$1" = 0 ]; then
     /sbin/install-info --delete %{_infodir}/%{name}.info %{_infodir}/dir || :
 fi
 
-%postun
+%postun common
 if [ $1 -eq 0 ] ; then
     touch --no-create %{_datadir}/icons/hicolor &>/dev/null
     gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 fi
 
-%posttrans
+%posttrans common
 gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 
-%files -f %{name}.lang
+%files
+
+%files common -f %{name}.lang
 %doc %{name}-%{version}.gtk/AUTHORS %{name}-%{version}.gtk/ChangeLog
 %doc %{name}-%{version}.gtk/FEEDBACK %{name}-%{version}.gtk/README
-%doc doc/iec-bus.txt doc/html/*.html doc/html/images
-%{_bindir}/*
-%{_datadir}/applications/*.desktop
+%doc %{name}-%{version}.gtk/doc/iec-bus.txt
+%doc %{name}-%{version}.gtk/doc/html/*.html
+%doc %{name}-%{version}.gtk/doc/html/images
+%{_bindir}/c1541
+%{_bindir}/cartconv
+%{_bindir}/petcat
+%{_bindir}/vsid
 %{_datadir}/icons/hicolor/*/apps/*.png
 %{_infodir}/%{name}.info*
 %{_mandir}/man1/*.1.gz
+
+%files x64
+%{_bindir}/x64*
+%{_bindir}/xscpu64*
+%{_datadir}/appdata/x64.appdata.xml
+%{_datadir}/applications/x64.desktop
+
+%files x128
+%{_bindir}/x128*
+%{_datadir}/appdata/x128.metainfo.xml
+%{_datadir}/applications/x128.desktop
+
+%files xcbm-ii
+%{_bindir}/xcbm*
+%{_datadir}/appdata/xcbm-ii.metainfo.xml
+%{_datadir}/applications/xcbm-ii.desktop
+
+%files xpet
+%{_bindir}/xpet*
+%{_datadir}/appdata/xpet.metainfo.xml
+%{_datadir}/applications/xpet.desktop
+
+%files xplus4
+%{_bindir}/xplus4*
+%{_datadir}/appdata/xplus4.metainfo.xml
+%{_datadir}/applications/xplus4.desktop
+
+%files xvic
+%{_bindir}/xvic*
+%{_datadir}/appdata/xvic.metainfo.xml
+%{_datadir}/applications/xvic.desktop
 
 %files data
 %{_datadir}/%{name}
@@ -176,8 +295,22 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 
 %changelog
+* Sun Mar 26 2017 RPM Fusion Release Engineering <kwizart@rpmfusion.org> - 2.4.28-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_26_Mass_Rebuild
+
+* Mon Jun 27 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 2.4.28-1
+- New upstream release 2.4.28
+
+* Mon Feb 22 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 2.4.24-3
+- Actually create the vice meta-package so that upgrades work
+
+* Wed Feb 17 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 2.4.24-2
+- Split out all the different emulators into separate sub-packages,
+  make "vice" a meta packages which simply installs all of them
+- Add appdata
+
 * Mon Feb  1 2016 Roland Hermans <rolandh@users.sourceforge.net> - 2.4.24-1
-- Patches and updates for VICE 2.4.24 on Fedora 23.
+- Patches and updates for VICE 2.4.24 on Fedora 23 (rf#3961)
 
 * Sun Aug 31 2014 Sérgio Basto <sergio@serjux.com> - 2.4-4
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_21_22_Mass_Rebuild
